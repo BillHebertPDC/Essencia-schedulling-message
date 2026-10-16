@@ -1,8 +1,10 @@
 package com.example.studio_many_scheduling_actions_service.infrastructure.whatsapp;
 
 /**
- * Normaliza telefones para o formato E.164 exigido pelo Twilio (ex.: +5511944407845).
- * Considera numeros brasileiros armazenados sem '+' e, quando sem codigo do pais
+ * Normaliza telefones para o formato E.164 exigido pelo Twilio (ex.:
+ * +5511944407845).
+ * Considera numeros brasileiros armazenados sem '+' e, quando sem codigo do
+ * pais
  * (ate 11 digitos), assume o codigo do Brasil (55).
  */
 public final class TelefoneE164 {

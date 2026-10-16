@@ -1,0 +1,8 @@
+target/
+data/
+.git/
+.gitignore
+*.md
+hs_err_pid*.log
+.idea/
+.vscode/

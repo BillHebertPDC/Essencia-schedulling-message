@@ -1,6 +1,6 @@
 package com.example.studio_many_scheduling_actions_service.infrastructure.whatsapp;
 
-import com.example.studio_many_scheduling_actions_service.domain.model.MensagemAgendamento;
+import com.example.studio_many_scheduling_actions_service.domain.model.MascaraTelefone;
 import com.example.studio_many_scheduling_actions_service.domain.port.NotificadorWhatsApp;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
@@ -13,8 +13,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * Envia a mensagem de WhatsApp via Twilio (WhatsApp Business API).
- * Requer o provedor "twilio" em whatsapp.provider.
+ * Envia texto livre via Twilio (WhatsApp Business API). Numeros chegam
+ * validados pelo caso de uso; aqui sao normalizados para E.164.
  */
 @Component
 @ConditionalOnProperty(name = "whatsapp.provider", havingValue = "twilio", matchIfMissing = false)
@@ -24,18 +24,16 @@ public class NotificadorWhatsAppTwilio implements NotificadorWhatsApp {
 
     private static final String PREFIXO_WHATSAPP = "whatsapp:";
 
-    private final FormatadorMensagemWaha formatador;
     private final String accountSid;
     private final String authToken;
     private final String apiKeySid;
     private final String whatsappNumber;
 
-    public NotificadorWhatsAppTwilio(FormatadorMensagemWaha formatador,
-                                     @Value("${twilio.account-sid}") String accountSid,
-                                     @Value("${twilio.auth-token}") String authToken,
-                                     @Value("${twilio.api-key-sid:}") String apiKeySid,
-                                     @Value("${twilio.whatsapp-number}") String whatsappNumber) {
-        this.formatador = formatador;
+    public NotificadorWhatsAppTwilio(
+            @Value("${twilio.account-sid}") String accountSid,
+            @Value("${twilio.auth-token}") String authToken,
+            @Value("${twilio.api-key-sid:}") String apiKeySid,
+            @Value("${twilio.whatsapp-number}") String whatsappNumber) {
         this.accountSid = accountSid;
         this.authToken = authToken;
         this.apiKeySid = apiKeySid;
@@ -52,29 +50,25 @@ public class NotificadorWhatsAppTwilio implements NotificadorWhatsApp {
     }
 
     @Override
-    public void enviarMensagemStatus(MensagemAgendamento mensagem) {
-        String telefone = mensagem.getTelefone();
-        if (telefone == null || telefone.isBlank()) {
-            log.warn("Sem telefone para enviar mensagem de status {} idAgendamento={}",
-                    mensagem.getAcao(), mensagem.getIdAgendamento());
-            return;
+    public void enviarTexto(String numero, String texto) {
+        if (numero == null || numero.isBlank()) {
+            throw new IllegalArgumentException("Numero e obrigatorio");
         }
 
-        String texto = formatador.formatar(mensagem);
-        String telefoneE164 = TelefoneE164.normalizar(telefone);
+        String telefoneE164 = TelefoneE164.normalizar(numero);
 
-        log.info("Enviando WhatsApp via Twilio: para={}, status={}", telefoneE164, mensagem.getAcao());
+        log.info("Enviando WhatsApp via Twilio: para={}", MascaraTelefone.mascarar(telefoneE164));
 
         try {
             Message.creator(
                     new PhoneNumber(PREFIXO_WHATSAPP + telefoneE164),
                     new PhoneNumber(whatsappNumber),
-                    texto
-            ).create();
-            log.info("WhatsApp enviado com sucesso: idAgendamento={}, status={}", mensagem.getIdAgendamento(), mensagem.getAcao());
+                    texto).create();
+            log.info("WhatsApp enviado com sucesso: para={}", MascaraTelefone.mascarar(telefoneE164));
         } catch (Exception ex) {
-            log.error("Falha ao enviar WhatsApp via Twilio: idAgendamento={}, status={}, erro={}",
-                    mensagem.getIdAgendamento(), mensagem.getAcao(), ex.getMessage());
+            log.error("Falha ao enviar WhatsApp via Twilio: para={}, erro={}",
+                    MascaraTelefone.mascarar(telefoneE164), ex.getMessage());
+            throw new IllegalStateException("Falha no envio via Twilio", ex);
         }
     }
 }
