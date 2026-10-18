@@ -9,6 +9,23 @@ services:
       - docker/.env
     volumes:
       - waha_instances:/app/.sessions
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq
+    env_file:
+      - docker/.env
+    ports:
+      # Somente localhost: o broker nao deve ficar acessivel de fora da maquina
+      - "127.0.0.1:5672:5672"    # Comunicação AMQP com o Spring
+      - "127.0.0.1:15672:15672"  # Painel administrativo
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
+  rabbitmq_data:
   waha_instances:

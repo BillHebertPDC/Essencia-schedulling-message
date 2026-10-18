@@ -1,5 +1,8 @@
 HELP.md
 target/
+# Secretos locais (docker) - nunca versionar
+.env
+docker/.env
 # H2 file database (runtime artifact)
 data/
 .mvn/wrapper/maven-wrapper.jar

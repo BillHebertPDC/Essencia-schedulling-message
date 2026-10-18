@@ -5,8 +5,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(properties = {
 		"whatsapp.provider=noop",
-		"spring.datasource.url=jdbc:h2:mem:contexttest;DB_CLOSE_DELAY=-1",
-		"spring.sql.init.mode=always"
+		"spring.rabbitmq.username=teste",
+		"spring.rabbitmq.password=teste",
+		"spring.rabbitmq.listener.simple.auto-startup=false"
 })
 class StudioManySchedullingActionsServiceApplicationTests {
 

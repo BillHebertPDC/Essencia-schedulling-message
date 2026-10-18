@@ -1,6 +1,6 @@
 package com.example.studio_many_scheduling_actions_service.infrastructure.whatsapp;
 
-import com.example.studio_many_scheduling_actions_service.domain.model.MensagemAgendamento;
+import com.example.studio_many_scheduling_actions_service.domain.model.MascaraTelefone;
 import com.example.studio_many_scheduling_actions_service.domain.port.NotificadorWhatsApp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,11 +10,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.util.Map;
 
 /**
- * Envia a mensagem de WhatsApp via WAHA (endpoint /api/sendText).
+ * Envia texto livre via WAHA (WhatsApp HTTP API). Numeros chegam validados pelo
+ * caso de uso (nao ha telefone padrao de fallback).
  */
 @Component
 @ConditionalOnProperty(name = "whatsapp.provider", havingValue = "waha", matchIfMissing = true)
@@ -25,21 +27,15 @@ public class NotificadorWhatsAppWaha implements NotificadorWhatsApp {
     private static final String SUFIXO_CHAT_ID = "@c.us";
 
     private final RestClient restClient;
-    private final FormatadorMensagemWaha formatador;
     private final String chaveApi;
     private final String sessao;
-    private final String telefonePadrao;
 
     public NotificadorWhatsAppWaha(RestClient.Builder construtorRestClient,
-                                   FormatadorMensagemWaha formatador,
-                                   @Value("${waha.api.url}") String urlApi,
-                                   @Value("${waha.api.apikey:}") String chaveApi,
-                                   @Value("${waha.session:Teste}") String sessao,
-                                   @Value("${waha.phone.default:}") String telefonePadrao) {
-        this.formatador = formatador;
+            @Value("${waha.api.url}") String urlApi,
+            @Value("${waha.api.apikey:}") String chaveApi,
+            @Value("${waha.session:Teste}") String sessao) {
         this.chaveApi = chaveApi;
         this.sessao = sessao;
-        this.telefonePadrao = telefonePadrao;
         this.restClient = construtorRestClient
                 .baseUrl(urlApi)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -47,22 +43,14 @@ public class NotificadorWhatsAppWaha implements NotificadorWhatsApp {
     }
 
     @Override
-    public void enviarMensagemStatus(MensagemAgendamento mensagem) {
-        String telefone = (mensagem.getTelefone() == null || mensagem.getTelefone().isBlank())
-                ? telefonePadrao
-                : mensagem.getTelefone();
-
-        if (telefone == null || telefone.isBlank()) {
-            log.warn("Sem telefone para enviar mensagem de status {} idAgendamento={}",
-                    mensagem.getAcao(), mensagem.getIdAgendamento());
-            return;
+    public void enviarTexto(String numero, String texto) {
+        if (numero == null || numero.trim().isBlank()) {
+            throw new IllegalArgumentException("Numero e obrigatorio");
         }
 
-        String texto = formatador.formatar(mensagem);
-        String chatId = telefone + SUFIXO_CHAT_ID;
+        String chatId = numero.trim() + SUFIXO_CHAT_ID;
 
-        log.info("Enviando WhatsApp via WAHA: sessao={}, chatId={}, status={}",
-                sessao, chatId, mensagem.getAcao());
+        log.info("Enviando WhatsApp via WAHA: sessao={}, chatId={}", sessao, MascaraTelefone.mascarar(chatId));
 
         try {
             RestClient.RequestBodySpec requisicao = restClient.post().uri("/api/sendText");
@@ -72,10 +60,11 @@ public class NotificadorWhatsAppWaha implements NotificadorWhatsApp {
             requisicao.body(Map.of("session", sessao, "chatId", chatId, "text", texto))
                     .retrieve()
                     .toBodilessEntity();
-            log.info("WhatsApp enviado com sucesso: idAgendamento={}, status={}", mensagem.getIdAgendamento(), mensagem.getAcao());
-        } catch (Exception ex) {
-            log.error("Falha ao enviar WhatsApp via WAHA: idAgendamento={}, status={}, erro={}",
-                    mensagem.getIdAgendamento(), mensagem.getAcao(), ex.getMessage());
+            log.info("WhatsApp enviado com sucesso: chatId={}", MascaraTelefone.mascarar(chatId));
+        } catch (RestClientException ex) {
+            log.error("Falha ao enviar WhatsApp via WAHA: chatId={}, erro={}",
+                    MascaraTelefone.mascarar(chatId), ex.getMessage());
+            throw new IllegalStateException("Falha no envio via WAHA", ex);
         }
     }
 }
