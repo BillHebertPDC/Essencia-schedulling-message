@@ -1,4 +1,4 @@
-# studio-many-scheduling-actions-service
+# Essencia-scheduling-message
 
 Microservico worker (sem HTTP) que consome comandos de envio de WhatsApp do
 RabbitMQ: le o **numero** e os **parametros** da mensagem, renderiza o texto e
